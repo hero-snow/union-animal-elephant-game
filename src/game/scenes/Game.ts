@@ -128,7 +128,6 @@ export class Game extends Scene {
         });
 
         // After destroying game objects, we may need to remove their bodies from the world too
-        this.matter.world.clear();
         this.matter.world.setBounds(50, 50, 500, 750, 32, true, true, false, true);
 
 
