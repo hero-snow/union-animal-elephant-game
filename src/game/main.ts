@@ -4,7 +4,7 @@ import { AUTO, Game, Scale,Types } from 'phaser';
 // Find out more information about the Game Config at:
 // https://docs.phaser.io/api-documentation/typedef/types-core#gameconfig
 const config: Types.Core.GameConfig = {
-    type: Phaser.CANVAS,
+    type: AUTO,
     width: 600,
     height: 800,
     parent: 'game-container',
