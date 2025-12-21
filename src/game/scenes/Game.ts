@@ -76,7 +76,7 @@ export class Game extends Scene {
         if (this.gameOver) return;
 
         let isAnimalOverLine = false;
-        const bodies = this.matter.world.localBodies;
+        const bodies = this.matter.world.getAllBodies();
 
         for (const body of bodies) {
             if (body.gameObject) {
@@ -119,16 +119,18 @@ export class Game extends Scene {
         this.gameOverTimer = 0;
 
         // Clear existing animals
-        const bodies = this.matter.world.localBodies;
+        const bodies = this.matter.world.getAllBodies();
         const gameObjects = bodies.map(body => body.gameObject).filter(obj => obj) as Matter.MatterGameObject[];
         gameObjects.forEach(obj => {
-             // Check if the object has a 'destroy' method before calling it
-            if (typeof obj.destroy === 'function') {
+            if (obj && typeof obj.destroy === 'function') {
                 obj.destroy();
             }
         });
+
+        // After destroying game objects, we may need to remove their bodies from the world too
         this.matter.world.clear();
         this.matter.world.setBounds(50, 50, 500, 750, 32, true, true, false, true);
+
 
         if (this.scoreText) this.scoreText.destroy();
         this.scoreText = this.add.text(50, 10, `Score: ${this.score}`, { fontSize: '24px', color: '#000' });
@@ -180,7 +182,7 @@ export class Game extends Scene {
         const clampedX = Phaser.Math.Clamp(x, 50 + spec.radius, 550 - spec.radius);
 
         this.createAnimal(clampedX, 100, this.currentAnimalIndex);
-        
+
         this.currentAnimalIndex = Math.floor(Math.random() * 3);
         this.updateAnimalIndicator(this.input.x);
     }
