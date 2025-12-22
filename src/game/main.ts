@@ -5,10 +5,17 @@ import { AUTO, Game, Scale,Types } from 'phaser';
 // https://docs.phaser.io/api-documentation/typedef/types-core#gameconfig
 const config: Types.Core.GameConfig = {
     type: AUTO,
-    width: 1024,
-    height: 768,
+    width: 600,
+    height: 800,
     parent: 'game-container',
-    backgroundColor: '#028af8',
+    backgroundColor: '#d2e6ff',
+    physics: {
+        default: 'matter',
+        matter: {
+            gravity: { y: 1 },
+            debug: true
+        }
+    },
     scale: {
         mode: Scale.FIT,
         autoCenter: Scale.CENTER_BOTH

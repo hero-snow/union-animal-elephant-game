@@ -1,0 +1,181 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+</head>
+<body>
+    <script>
+        // Python版 ANIMAL_SPECS の移植
+        const ANIMAL_SPECS = [
+            { name: "ねずみ", radius: 20, color: 0x808080, score: 10 },
+            { name: "うさぎ", radius: 25, color: 0xffffff, score: 20 },
+            { name: "ねこ",   radius: 30, color: 0xffa500, score: 30 },
+            { name: "いぬ",   radius: 35, color: 0x8b4513, score: 40 },
+            { name: "きつね", radius: 40, color: 0xff8c00, score: 50 },
+            { name: "うま",   radius: 50, color: 0xa0522d, score: 60 },
+            { name: "きりん", radius: 60, color: 0xffd700, score: 70 },
+            { name: "ライオン", radius: 70, color: 0xdaa520, score: 80 },
+            { name: "ぞう",   radius: 80, color: 0xc0c0c0, score: 90 }
+        ];
+
+
+
+
+
+
+
+
+        class GameScene extends Phaser.Scene {
+            constructor() {
+                super('GameScene');
+                this.score = 0;
+            }
+
+
+
+
+
+
+
+
+            create() {
+                // 物理空間の設定（PymunkのGRAVITYに相当）
+                this.matter.world.setBounds(50, 50, 500, 700, 5, true, true, false, true);
+
+                // 次に落とす動物の準備
+                this.currentAnimalIndex = Math.floor(Math.random() * 3);
+
+                // クリック（タップ）イベント
+                this.input.on('pointerdown', (pointer) => {
+                    this.dropAnimal(pointer.x);
+                });
+
+
+
+
+
+
+
+
+                // 衝突判定（Python版 post_solve_collision に相当）
+                this.matter.world.on('collisionstart', (event) => {
+                    event.pairs.forEach(pair => {
+                        const { bodyA, bodyB } = pair;
+                        // 同じ種類の動物が当たったかチェック
+                        if (bodyA.gameObject && bodyB.gameObject &&
+                            bodyA.label === bodyB.label && bodyA.label !== "ぞう") {
+
+                            this.evolve(bodyA.gameObject, bodyB.gameObject);
+                        }
+                    });
+                });
+            }
+
+
+
+
+
+
+
+
+            dropAnimal(x) {
+                const spec = ANIMAL_SPECS[this.currentAnimalIndex];
+                // 壁の内側に制限
+                const clampedX = Phaser.Math.Clamp(x, 50 + spec.radius, 550 - spec.radius);
+
+                this.createAnimal(clampedX, 100, this.currentAnimalIndex);
+                this.currentAnimalIndex = Math.floor(Math.random() * 3);
+            }
+
+
+
+
+
+
+
+
+            createAnimal(x, y, index) {
+                const spec = ANIMAL_SPECS[index];
+                const circle = this.add.circle(x, y, spec.radius, spec.color);
+
+                // 物理ボディの付与
+                const body = this.matter.add.gameObject(circle, {
+                    shape: { type: 'circle', radius: spec.radius },
+                    restitution: 0.5, // ELASTICITY
+                    friction: 0.5,    // FRICTION
+                    label: spec.name
+                });
+
+                body.setData('index', index);
+                return body;
+            }
+
+
+
+
+
+
+
+
+            evolve(objA, objB) {
+                const nextIndex = objA.getData('index') + 1;
+                const newX = (objA.x + objB.x) / 2;
+                const newY = (objA.y + objB.y) / 2;
+
+
+
+
+
+
+
+
+                // 古い個体を削除
+                objA.destroy();
+                objB.destroy();
+
+
+
+
+
+
+
+
+                // 次の動物を作成
+                if (nextIndex < ANIMAL_SPECS.length) {
+                    this.createAnimal(newX, newY, nextIndex);
+                    this.score += ANIMAL_SPECS[nextIndex].score;
+                    console.log("Score:", this.score);
+                }
+            }
+        }
+
+
+
+
+
+
+
+
+        const config = {
+            type: Phaser.AUTO,
+            width: 700,
+            height: 900,
+            backgroundColor: '#d2e6ff', // BACKGROUND_COLOR
+            physics: {
+                default: 'matter',
+                matter: { gravity: { y: 1.5 }, debug: true }
+            },
+            scene: GameScene
+        };
+
+
+
+
+
+
+
+
+        new Phaser.Game(config);
+    </script>
+</body>
+</html>
