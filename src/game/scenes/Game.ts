@@ -155,7 +155,9 @@ export class Game extends Scene {
         }
 
         this.gameOverText = this.add.text(300, 350, 'Game Over', { fontSize: '64px', color: '#ff0000' }).setOrigin(0.5);
-        this.restartText = this.add.text(300, 420, 'Press R to Restart', { fontSize: '32px', color: '#000' }).setOrigin(0.5);
+        this.restartText = this.add.text(300, 420, 'Press R to Restart', { fontSize: '32px', color: '#000' }).setOrigin(0.5)
+            .setInteractive({ useHandCursor: true })
+            .on('pointerdown', () => this.resetGame());
 
         if (this.currentAnimalIndicator) this.currentAnimalIndicator.destroy();
     }
