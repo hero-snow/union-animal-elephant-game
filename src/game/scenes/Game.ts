@@ -1,15 +1,15 @@
 import { Scene, GameObjects, Matter, Types } from 'phaser';
 
 const ANIMAL_SPECS = [
-    { name: "ねずみ", radius: 20, color: 0x808080, score: 10 },
-    { name: "うさぎ", radius: 25, color: 0xffffff, score: 20 },
-    { name: "ねこ",   radius: 30, color: 0xffa500, score: 30 },
-    { name: "いぬ",   radius: 35, color: 0x8b4513, score: 40 },
-    { name: "きつね", radius: 40, color: 0xff8c00, score: 50 },
-    { name: "うま",   radius: 50, color: 0xa0522d, score: 60 },
-    { name: "きりん", radius: 60, color: 0xffd700, score: 70 },
-    { name: "ライオン", radius: 70, color: 0xdaa520, score: 80 },
-    { name: "ぞう",   radius: 80, color: 0xc0c0c0, score: 90 }
+    { name: "ねずみ", radius: 20, image: "animal_0.png", score: 10 },
+    { name: "うさぎ", radius: 25, image: "animal_1.png", score: 20 },
+    { name: "ねこ",   radius: 30, image: "animal_2.png", score: 30 },
+    { name: "いぬ",   radius: 35, image: "animal_3.png", score: 40 },
+    { name: "きつね", radius: 40, image: "animal_4.png", score: 50 },
+    { name: "うま",   radius: 50, image: "animal_5.png", score: 60 },
+    { name: "きりん", radius: 60, image: "animal_6.png", score: 70 },
+    { name: "ライオン", radius: 70, image: "animal_7.png", score: 80 },
+    { name: "ぞう",   radius: 80, image: "animal_8.png", score: 90 }
 ];
 
 const GAME_OVER_LINE_Y = 100;
@@ -21,7 +21,7 @@ export class Game extends Scene {
     private scoreText!: GameObjects.Text;
     private highScoreText!: GameObjects.Text;
     private currentAnimalIndex!: number;
-    private currentAnimalIndicator!: GameObjects.Graphics;
+    private currentAnimalIndicator!: GameObjects.Image;
     private gameOver: boolean = false;
     private gameOverTimer: number = 0;
     private gameOverText!: GameObjects.Text;
@@ -37,6 +37,11 @@ export class Game extends Scene {
         if (savedHighScore) {
             this.highScore = parseInt(savedHighScore, 10);
         }
+
+        // Load animal images
+        ANIMAL_SPECS.forEach((spec, index) => {
+            this.load.image(`animal_${index}`, `assets/images/${spec.image}`);
+        });
     }
 
     create() {
@@ -162,18 +167,18 @@ export class Game extends Scene {
 
     createAnimalIndicator() {
         const spec = ANIMAL_SPECS[this.currentAnimalIndex];
-        this.currentAnimalIndicator = this.add.graphics();
+        this.currentAnimalIndicator = this.add.image(0, 50, `animal_${this.currentAnimalIndex}`);
         this.updateAnimalIndicator(this.input.x);
     }
 
     updateAnimalIndicator(x: number) {
         const spec = ANIMAL_SPECS[this.currentAnimalIndex];
         const clampedX = Phaser.Math.Clamp(x, 50 + spec.radius, 550 - spec.radius);
-        this.currentAnimalIndicator.clear();
-        this.currentAnimalIndicator.lineStyle(2, 0x000000, 0.5);
-        this.currentAnimalIndicator.strokeCircle(0, 0, spec.radius);
+        this.currentAnimalIndicator.setTexture(`animal_${this.currentAnimalIndex}`);
+        const displayWidth = spec.radius * 2;
+        const displayHeight = (this.currentAnimalIndicator.height / this.currentAnimalIndicator.width) * displayWidth;
+        this.currentAnimalIndicator.setDisplaySize(displayWidth, displayHeight);
         this.currentAnimalIndicator.x = clampedX;
-        this.currentAnimalIndicator.y = 50;
     }
 
     dropAnimal(x: number) {
@@ -188,17 +193,26 @@ export class Game extends Scene {
 
     createAnimal(x: number, y: number, index: number): Matter.MatterGameObject {
         const spec = ANIMAL_SPECS[index];
-        const circle = this.add.circle(x, y, spec.radius, spec.color);
+        const texture = `animal_${index}`;
 
-        const body = this.matter.add.gameObject(circle, {
-            shape: { type: 'circle', radius: spec.radius },
+        // The image is the visual representation
+        const image = this.add.image(0, 0, texture);
+        const displayWidth = spec.radius * 2;
+        const displayHeight = (image.height / image.width) * displayWidth;
+        image.setDisplaySize(displayWidth, displayHeight);
+
+        // The body is the physical representation
+        const body = this.matter.add.circle(x, y, spec.radius, {
             restitution: 0.5,
             friction: 0.5,
             label: spec.name
-        }) as Matter.MatterGameObject;
+        });
 
-        body.setData('index', index);
-        return body;
+        const container = this.add.container(x, y, [ image ]);
+        container.setData('index', index);
+
+        // Associate the container with the Matter body
+        return this.matter.add.gameObject(container, body) as Matter.MatterGameObject;
     }
 
     evolve(objA: Matter.MatterGameObject, objB: Matter.MatterGameObject) {
@@ -207,8 +221,8 @@ export class Game extends Scene {
             return;
         }
         const nextIndex = index + 1;
-        const newX = (objA.x + objB.x) / 2;
-        const newY = (objA.y + objB.y) / 2;
+        const newX = (objA.body.position.x + objB.body.position.x) / 2;
+        const newY = (objA.body.position.y + objB.body.position.y) / 2;
         
         this.time.delayedCall(1, () => {
             if (objA.active && objB.active) {
