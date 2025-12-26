@@ -26,6 +26,7 @@ export class Game extends Scene {
     private gameOverTimer: number = 0;
     private gameOverText!: GameObjects.Text;
     private restartText!: GameObjects.Text;
+    private restartButton!: GameObjects.Text;
 
     constructor() {
         super('Game');
@@ -144,6 +145,7 @@ export class Game extends Scene {
 
         if (this.gameOverText) this.gameOverText.destroy();
         if (this.restartText) this.restartText.destroy();
+        if (this.restartButton) this.restartButton.destroy();
 
         this.currentAnimalIndex = Math.floor(Math.random() * 3);
         if (this.currentAnimalIndicator) this.currentAnimalIndicator.destroy();
@@ -161,6 +163,7 @@ export class Game extends Scene {
 
         this.gameOverText = this.add.text(300, 350, 'Game Over', { fontSize: '64px', color: '#ff0000' }).setOrigin(0.5);
         this.restartText = this.add.text(300, 420, 'Press R to Restart', { fontSize: '32px', color: '#000' }).setOrigin(0.5);
+        this.createRestartButton();
 
         if (this.currentAnimalIndicator) this.currentAnimalIndicator.destroy();
     }
@@ -179,6 +182,19 @@ export class Game extends Scene {
         const displayHeight = (this.currentAnimalIndicator.height / this.currentAnimalIndicator.width) * displayWidth;
         this.currentAnimalIndicator.setDisplaySize(displayWidth, displayHeight);
         this.currentAnimalIndicator.x = clampedX;
+    }
+
+    private createRestartButton() {
+        this.restartButton = this.add.text(300, 470, 'Restart Game', {
+            fontSize: '32px',
+            color: '#FFF',
+            backgroundColor: '#007BFF',
+            padding: { x: 10, y: 5 }
+        }).setOrigin(0.5).setInteractive();
+
+        this.restartButton.on('pointerdown', () => {
+            this.resetGame();
+        });
     }
 
     dropAnimal(x: number) {
