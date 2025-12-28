@@ -190,10 +190,18 @@ export class Game extends Scene {
             color: '#FFF',
             backgroundColor: '#007BFF',
             padding: { x: 10, y: 5 }
-        }).setOrigin(0.5).setInteractive();
+        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
         this.restartButton.on('pointerdown', () => {
             this.resetGame();
+        });
+
+        this.restartButton.on('pointerover', () => {
+            this.restartButton.setBackgroundColor('#0056b3');
+        });
+
+        this.restartButton.on('pointerout', () => {
+            this.restartButton.setBackgroundColor('#007BFF');
         });
     }
 
