@@ -27,6 +27,7 @@ export class Game extends Scene {
     private gameOverText!: GameObjects.Text;
     private restartText!: GameObjects.Text;
     private restartButton!: GameObjects.Text;
+    private gameOverLine!: GameObjects.Graphics;
 
     constructor() {
         super('Game');
@@ -100,23 +101,27 @@ export class Game extends Scene {
 
         if (isAnimalOverLine) {
             this.gameOverTimer += delta;
+            // Simple blink effect
+            this.gameOverLine.setVisible(Math.floor(time / 250) % 2 === 0);
+
             if (this.gameOverTimer > GAME_OVER_DELAY) {
                 this.triggerGameOver();
             }
         } else {
             this.gameOverTimer = 0;
+            this.gameOverLine.setVisible(true); // Ensure it's visible when not in danger
         }
     }
 
     drawGameOverLine() {
-        const line = this.add.graphics();
-        line.lineStyle(2, 0xff0000, 0.5);
-        line.beginPath();
+        this.gameOverLine = this.add.graphics();
+        this.gameOverLine.lineStyle(2, 0xff0000, 0.5);
+        this.gameOverLine.beginPath();
         for (let x = 50; x < 550; x += 20) {
-            line.moveTo(x, GAME_OVER_LINE_Y);
-            line.lineTo(x + 10, GAME_OVER_LINE_Y);
+            this.gameOverLine.moveTo(x, GAME_OVER_LINE_Y);
+            this.gameOverLine.lineTo(x + 10, GAME_OVER_LINE_Y);
         }
-        line.strokePath();
+        this.gameOverLine.strokePath();
     }
 
     resetGame() {
