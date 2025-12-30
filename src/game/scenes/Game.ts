@@ -162,7 +162,20 @@ export class Game extends Scene {
         }
 
         this.gameOverText = this.add.text(300, 350, 'Game Over', { fontSize: '64px', color: '#ff0000' }).setOrigin(0.5);
-        this.restartText = this.add.text(300, 420, 'Press R to Restart', { fontSize: '32px', color: '#000' }).setOrigin(0.5);
+        this.restartText = this.add.text(300, 420, 'Press R to Restart', { fontSize: '32px', color: '#000' }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+        this.restartText.on('pointerdown', () => {
+            this.resetGame();
+        });
+
+        this.restartText.on('pointerover', () => {
+            this.restartText.setColor('#007BFF');
+        });
+
+        this.restartText.on('pointerout', () => {
+            this.restartText.setColor('#000');
+        });
+
         this.createRestartButton();
 
         if (this.currentAnimalIndicator) this.currentAnimalIndicator.destroy();
