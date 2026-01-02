@@ -193,6 +193,11 @@ export class Game extends Scene {
         }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
         this.restartButton.on('pointerdown', () => {
+            this.restartButton.setScale(0.95);
+        });
+
+        this.restartButton.on('pointerup', () => {
+            this.restartButton.setScale(1);
             this.resetGame();
         });
 
@@ -202,6 +207,7 @@ export class Game extends Scene {
 
         this.restartButton.on('pointerout', () => {
             this.restartButton.setBackgroundColor('#007BFF');
+            this.restartButton.setScale(1);
         });
     }
 
