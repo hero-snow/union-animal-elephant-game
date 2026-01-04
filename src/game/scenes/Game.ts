@@ -262,6 +262,14 @@ export class Game extends Scene {
                 this.createAnimal(newX, newY, nextIndex);
                 this.score += ANIMAL_SPECS[nextIndex].score;
                 this.scoreText.setText('Score: ' + this.score);
+                this.tweens.add({
+                    targets: this.scoreText,
+                    scaleX: 1.2,
+                    scaleY: 1.2,
+                    duration: 100,
+                    ease: 'Power2',
+                    yoyo: true
+                });
             }
         });
     }
