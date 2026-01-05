@@ -47,6 +47,7 @@ export class Game extends Scene {
 
     create() {
         this.matter.world.setBounds(50, 50, 500, 750, 32, true, true, false, true);
+        this.matter.world.debugGraphic.setVisible(false);
 
         this.drawGameOverLine();
         this.resetGame();
@@ -75,6 +76,12 @@ export class Game extends Scene {
         // Restart listener
         this.input.keyboard?.on('keydown-R', () => {
             if (this.gameOver) this.resetGame();
+        });
+
+        this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
+            if (event.key === 'd' || event.key === 'D') {
+                this.matter.world.debugGraphic.setVisible(!this.matter.world.debugGraphic.visible);
+            }
         });
     }
 
