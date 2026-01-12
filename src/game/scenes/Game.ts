@@ -47,7 +47,11 @@ export class Game extends Scene {
 
     create() {
         this.matter.world.setBounds(50, 50, 500, 750, 32, true, true, false, true);
-        this.matter.world.debugGraphic.setVisible(false);
+
+        const bounds = new Phaser.Geom.Rectangle(50, 50, 500, 750);
+        const graphics = this.add.graphics();
+        graphics.lineStyle(2, 0x0000ff, 1);
+        graphics.strokeRectShape(bounds);
 
         this.drawGameOverLine();
         this.resetGame();
@@ -69,8 +73,6 @@ export class Game extends Scene {
 
                 if (gameObjectA && gameObjectB && bodyA.label === bodyB.label && bodyA.label !== "ぞう") {
                     this.evolve(gameObjectA, gameObjectB);
-                } else if (gameObjectA && gameObjectB && bodyA.label === 'ぞう' && bodyB.label === 'ぞう') {
-                    this.handleElephantCollision(gameObjectA, gameObjectB);
                 }
             });
         });
@@ -78,12 +80,6 @@ export class Game extends Scene {
         // Restart listener
         this.input.keyboard?.on('keydown-R', () => {
             if (this.gameOver) this.resetGame();
-        });
-
-        this.input.keyboard?.on('keydown', (event: KeyboardEvent) => {
-            if (event.key === 'd' || event.key === 'D') {
-                this.matter.world.debugGraphic.setVisible(!this.matter.world.debugGraphic.visible);
-            }
         });
     }
 
@@ -271,41 +267,6 @@ export class Game extends Scene {
                 this.createAnimal(newX, newY, nextIndex);
                 this.score += ANIMAL_SPECS[nextIndex].score;
                 this.scoreText.setText('Score: ' + this.score);
-            }
-        });
-    }
-
-    handleElephantCollision(objA: Matter.MatterGameObject, objB: Matter.MatterGameObject) {
-        const newX = (objA.body.position.x + objB.body.position.x) / 2;
-        const newY = (objA.body.position.y + objB.body.position.y) / 2;
-
-        this.time.delayedCall(1, () => {
-            if (objA.active && objB.active) {
-                objA.destroy();
-                objB.destroy();
-
-                const elephantSpec = ANIMAL_SPECS.find(spec => spec.name === 'ぞう');
-                if (elephantSpec) {
-                    this.score += elephantSpec.score * 5;
-                    this.scoreText.setText('Score: ' + this.score);
-
-                    // Light burst effect
-                    const burst = this.add.graphics({ x: newX, y: newY });
-                    burst.fillStyle(0xffffff, 0.8);
-                    burst.fillCircle(0, 0, elephantSpec.radius);
-                    burst.setScale(0);
-
-                    this.tweens.add({
-                        targets: burst,
-                        scale: { from: 0, to: 1.5 },
-                        alpha: { from: 1, to: 0 },
-                        duration: 300,
-                        ease: 'Cubic.easeOut',
-                        onComplete: () => {
-                            burst.destroy();
-                        }
-                    });
-                }
             }
         });
     }
