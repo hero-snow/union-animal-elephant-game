@@ -17,7 +17,6 @@ const ANIMAL_SPECS = [
 const GAME_OVER_LINE_Y = 100;
 const GAME_OVER_DELAY = 2000;
 
-// The Living Canopy Theme Colors
 const COLORS = {
     background: 0xf2f9ea,
     primary: 0x29664c,
@@ -34,10 +33,10 @@ export class Game extends Scene {
     private scoreText!: GameObjects.Text;
     private highScoreText!: GameObjects.Text;
     private currentAnimalIndex!: number;
-    private currentAnimalIndicator!: GameObjects.Image;
+    private currentAnimalIndicator: GameObjects.Image | null = null;
     private gameOver: boolean = false;
     private gameOverTimer: number = 0;
-    private gameOverOverlay!: GameObjects.Container;
+    private gameOverOverlay: GameObjects.Container | null = null;
     private bgGraphics!: GameObjects.Graphics;
 
     constructor() {
@@ -80,7 +79,11 @@ export class Game extends Scene {
                 const gameObjectA = bodyA.gameObject as MatterGameObject;
                 const gameObjectB = bodyB.gameObject as MatterGameObject;
 
-                if (gameObjectA && gameObjectB && bodyA.label === bodyB.label && bodyA.label !== "ぞう") {
+                if (gameObjectA && gameObjectB &&
+                    bodyA.label === bodyB.label &&
+                    bodyA.label !== "ぞう" &&
+                    !gameObjectA.getData('isEvolving') &&
+                    !gameObjectB.getData('isEvolving')) {
                     this.evolve(gameObjectA, gameObjectB);
                 }
             });
@@ -93,16 +96,11 @@ export class Game extends Scene {
 
     drawBackground() {
         this.bgGraphics.clear();
-
-        // Game board background (rounded)
         this.bgGraphics.fillStyle(COLORS.surface, 1);
         this.bgGraphics.fillRoundedRect(50, 50, 500, 750, 20);
-
-        // Border
         this.bgGraphics.lineStyle(4, COLORS.primary, 0.5);
         this.bgGraphics.strokeRoundedRect(50, 50, 500, 750, 20);
 
-        // Sunbeams (decorative)
         this.bgGraphics.lineStyle(2, COLORS.tertiary, 0.2);
         for(let i=0; i<5; i++) {
             this.bgGraphics.lineBetween(0, 0, 200 + i*100, 400);
@@ -131,9 +129,10 @@ export class Game extends Scene {
             if (body.gameObject) {
                  const animal = body.gameObject as MatterGameObject;
                  const index = animal.getData('index');
-                 if (index !== undefined) {
+                 if (index !== undefined && !animal.getData('isEvolving')) {
                     const radius = ANIMAL_SPECS[index].radius;
-                    if (body.position.y - radius < GAME_OVER_LINE_Y) {
+                    // Only check if it's been dropped and settled a bit (velocity check or time)
+                    if (body.position.y - radius < GAME_OVER_LINE_Y && body.velocity.y < 0.1) {
                         isAnimalOverLine = true;
                         break;
                     }
@@ -177,10 +176,12 @@ export class Game extends Scene {
 
         this.matter.world.setBounds(50, 50, 500, 750, 32, true, true, false, true);
 
-        if (this.gameOverOverlay) this.gameOverOverlay.destroy();
+        if (this.gameOverOverlay) {
+            this.gameOverOverlay.destroy();
+            this.gameOverOverlay = null;
+        }
 
         this.currentAnimalIndex = Math.floor(Math.random() * 3);
-        if (this.currentAnimalIndicator) this.currentAnimalIndicator.destroy();
         this.createAnimalIndicator();
     }
 
@@ -194,7 +195,10 @@ export class Game extends Scene {
         }
 
         this.createGameOverOverlay();
-        if (this.currentAnimalIndicator) this.currentAnimalIndicator.destroy();
+        if (this.currentAnimalIndicator) {
+            this.currentAnimalIndicator.destroy();
+            this.currentAnimalIndicator = null;
+        }
     }
 
     createGameOverOverlay() {
@@ -219,8 +223,6 @@ export class Game extends Scene {
         const btnBg = this.add.graphics();
         btnBg.fillStyle(COLORS.primary, 1);
         btnBg.fillRoundedRect(-100, -30, 200, 60, 30);
-
-        // Button shadow
         btnBg.fillStyle(0x1b5a40, 1);
         btnBg.fillRoundedRect(-100, 25, 200, 10, 5);
 
@@ -247,6 +249,9 @@ export class Game extends Scene {
     }
 
     createAnimalIndicator() {
+        if (this.currentAnimalIndicator) {
+            this.currentAnimalIndicator.destroy();
+        }
         this.currentAnimalIndicator = this.add.image(0, 50, `animal_${this.currentAnimalIndex}`);
         this.currentAnimalIndicator.setAlpha(0);
         this.add.tween({
@@ -258,6 +263,7 @@ export class Game extends Scene {
     }
 
     updateAnimalIndicator(x: number) {
+        if (!this.currentAnimalIndicator) return;
         const spec = ANIMAL_SPECS[this.currentAnimalIndex];
         const clampedX = Phaser.Math.Clamp(x, 50 + spec.radius, 550 - spec.radius);
         this.currentAnimalIndicator.setTexture(`animal_${this.currentAnimalIndex}`);
@@ -268,6 +274,8 @@ export class Game extends Scene {
     }
 
     dropAnimal(x: number) {
+        if (this.gameOver) return;
+
         const spec = ANIMAL_SPECS[this.currentAnimalIndex];
         const clampedX = Phaser.Math.Clamp(x, 50 + spec.radius, 550 - spec.radius);
 
@@ -287,8 +295,8 @@ export class Game extends Scene {
         image.setDisplaySize(displayWidth, displayHeight);
 
         const body = this.matter.add.circle(x, y, spec.radius, {
-            restitution: 0.5,
-            friction: 0.5,
+            restitution: 0.4,
+            friction: 0.1,
             label: spec.name
         });
 
@@ -300,28 +308,39 @@ export class Game extends Scene {
 
     evolve(objA: MatterGameObject, objB: MatterGameObject) {
         const index = objA.getData('index');
-        if (index === null || index + 1 >= ANIMAL_SPECS.length) {
+        if (index === undefined || index === null || index + 1 >= ANIMAL_SPECS.length) {
             return;
         }
+
+        objA.setData('isEvolving', true);
+        objB.setData('isEvolving', true);
+
         const nextIndex = index + 1;
         const newX = (objA.body.position.x + objB.body.position.x) / 2;
         const newY = (objA.body.position.y + objB.body.position.y) / 2;
         
-        this.time.delayedCall(1, () => {
-            if (objA.active && objB.active) {
-                // Effects
-                this.createBurstEffect(newX, newY);
-                this.animateScore();
+        // Immediate visual removal of physics
+        this.matter.world.remove(objA.body);
+        this.matter.world.remove(objB.body);
 
+        this.createBurstEffect(newX, newY);
+        this.animateScore();
+
+        this.add.tween({
+            targets: [objA, objB],
+            scale: 0,
+            alpha: 0,
+            duration: 100,
+            onComplete: () => {
                 objA.destroy();
                 objB.destroy();
-        
+
                 const newAnimal = this.createAnimal(newX, newY, nextIndex);
                 newAnimal.setScale(0);
                 this.add.tween({
                     targets: newAnimal,
                     scale: 1,
-                    duration: 200,
+                    duration: 300,
                     ease: 'Back.easeOut'
                 });
 
@@ -345,7 +364,6 @@ export class Game extends Scene {
             onComplete: () => burst.destroy()
         });
 
-        // Simple particles
         for(let i=0; i<8; i++) {
             const p = this.add.circle(x, y, 4, COLORS.tertiary);
             const angle = (Math.PI * 2 / 8) * i;
