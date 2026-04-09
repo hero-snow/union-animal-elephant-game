@@ -82,8 +82,8 @@ export class Game extends Scene {
                 if (gameObjectA && gameObjectB &&
                     bodyA.label === bodyB.label &&
                     bodyA.label !== "ぞう" &&
-                    !gameObjectA.getData('isEvolving') &&
-                    !gameObjectB.getData('isEvolving')) {
+                    gameObjectA.active &&
+                    gameObjectB.active) {
                     this.evolve(gameObjectA, gameObjectB);
                 }
             });
@@ -129,9 +129,8 @@ export class Game extends Scene {
             if (body.gameObject) {
                  const animal = body.gameObject as MatterGameObject;
                  const index = animal.getData('index');
-                 if (index !== undefined && !animal.getData('isEvolving')) {
+                 if (index !== undefined) {
                     const radius = ANIMAL_SPECS[index].radius;
-                    // Only check if it's been dropped and settled a bit (velocity check or time)
                     if (body.position.y - radius < GAME_OVER_LINE_Y && body.velocity.y < 0.1) {
                         isAnimalOverLine = true;
                         break;
@@ -312,41 +311,35 @@ export class Game extends Scene {
             return;
         }
 
-        objA.setData('isEvolving', true);
-        objB.setData('isEvolving', true);
-
         const nextIndex = index + 1;
         const newX = (objA.body.position.x + objB.body.position.x) / 2;
         const newY = (objA.body.position.y + objB.body.position.y) / 2;
         
-        // Immediate visual removal of physics
-        this.matter.world.remove(objA.body);
-        this.matter.world.remove(objB.body);
+        // Use active flag to avoid multiple merges
+        objA.setActive(false);
+        objB.setActive(false);
 
         this.createBurstEffect(newX, newY);
         this.animateScore();
 
-        this.add.tween({
-            targets: [objA, objB],
-            scale: 0,
-            alpha: 0,
-            duration: 100,
-            onComplete: () => {
-                objA.destroy();
-                objB.destroy();
+        // Use a slight delay to ensure the destruction and creation don't conflict with the physics step
+        this.time.delayedCall(1, () => {
+            objA.destroy();
+            objB.destroy();
 
-                const newAnimal = this.createAnimal(newX, newY, nextIndex);
-                newAnimal.setScale(0);
-                this.add.tween({
-                    targets: newAnimal,
-                    scale: 1,
-                    duration: 300,
-                    ease: 'Back.easeOut'
-                });
+            const nextAnimal = this.createAnimal(newX, newY, nextIndex);
 
-                this.score += ANIMAL_SPECS[nextIndex].score;
-                this.scoreText.setText(`Score: ${this.score}`);
-            }
+            // Animating the visuals
+            nextAnimal.setScale(0);
+            this.add.tween({
+                targets: nextAnimal,
+                scale: 1,
+                duration: 300,
+                ease: 'Back.easeOut'
+            });
+
+            this.score += ANIMAL_SPECS[nextIndex].score;
+            this.scoreText.setText(`Score: ${this.score}`);
         });
     }
 
