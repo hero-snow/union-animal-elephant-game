@@ -79,11 +79,7 @@ export class Game extends Scene {
                 const gameObjectA = bodyA.gameObject as MatterGameObject;
                 const gameObjectB = bodyB.gameObject as MatterGameObject;
 
-                if (gameObjectA && gameObjectB &&
-                    bodyA.label === bodyB.label &&
-                    bodyA.label !== "ぞう" &&
-                    gameObjectA.active &&
-                    gameObjectB.active) {
+                if (gameObjectA && gameObjectB && bodyA.label === bodyB.label && bodyA.label !== "ぞう") {
                     this.evolve(gameObjectA, gameObjectB);
                 }
             });
@@ -131,7 +127,7 @@ export class Game extends Scene {
                  const index = animal.getData('index');
                  if (index !== undefined) {
                     const radius = ANIMAL_SPECS[index].radius;
-                    if (body.position.y - radius < GAME_OVER_LINE_Y && body.velocity.y < 0.1) {
+                    if (body.position.y - radius < GAME_OVER_LINE_Y) {
                         isAnimalOverLine = true;
                         break;
                     }
@@ -252,12 +248,6 @@ export class Game extends Scene {
             this.currentAnimalIndicator.destroy();
         }
         this.currentAnimalIndicator = this.add.image(0, 50, `animal_${this.currentAnimalIndex}`);
-        this.currentAnimalIndicator.setAlpha(0);
-        this.add.tween({
-            targets: this.currentAnimalIndicator,
-            alpha: 1,
-            duration: 200
-        });
         this.updateAnimalIndicator(this.input.x);
     }
 
@@ -294,8 +284,8 @@ export class Game extends Scene {
         image.setDisplaySize(displayWidth, displayHeight);
 
         const body = this.matter.add.circle(x, y, spec.radius, {
-            restitution: 0.4,
-            friction: 0.1,
+            restitution: 0.5,
+            friction: 0.5,
             label: spec.name
         });
 
@@ -315,70 +305,15 @@ export class Game extends Scene {
         const newX = (objA.body.position.x + objB.body.position.x) / 2;
         const newY = (objA.body.position.y + objB.body.position.y) / 2;
         
-        // Use active flag to avoid multiple merges
-        objA.setActive(false);
-        objB.setActive(false);
-
-        this.createBurstEffect(newX, newY);
-        this.animateScore();
-
-        // Use a slight delay to ensure the destruction and creation don't conflict with the physics step
         this.time.delayedCall(1, () => {
-            objA.destroy();
-            objB.destroy();
+            if (objA.active && objB.active) {
+                objA.destroy();
+                objB.destroy();
 
-            const nextAnimal = this.createAnimal(newX, newY, nextIndex);
-
-            // Animating the visuals
-            nextAnimal.setScale(0);
-            this.add.tween({
-                targets: nextAnimal,
-                scale: 1,
-                duration: 300,
-                ease: 'Back.easeOut'
-            });
-
-            this.score += ANIMAL_SPECS[nextIndex].score;
-            this.scoreText.setText(`Score: ${this.score}`);
-        });
-    }
-
-    private createBurstEffect(x: number, y: number) {
-        const burst = this.add.graphics();
-        burst.fillStyle(0xffffff, 0.8);
-        burst.fillCircle(0, 0, 10);
-        burst.setPosition(x, y);
-
-        this.add.tween({
-            targets: burst,
-            scale: 4,
-            alpha: 0,
-            duration: 400,
-            onComplete: () => burst.destroy()
-        });
-
-        for(let i=0; i<8; i++) {
-            const p = this.add.circle(x, y, 4, COLORS.tertiary);
-            const angle = (Math.PI * 2 / 8) * i;
-            const dist = 50;
-            this.add.tween({
-                targets: p,
-                x: x + Math.cos(angle) * dist,
-                y: y + Math.sin(angle) * dist,
-                alpha: 0,
-                duration: 500,
-                onComplete: () => p.destroy()
-            });
-        }
-    }
-
-    private animateScore() {
-        this.add.tween({
-            targets: this.scoreText,
-            scale: 1.2,
-            duration: 100,
-            yoyo: true,
-            ease: 'Quad.easeInOut'
+                this.createAnimal(newX, newY, nextIndex);
+                this.score += ANIMAL_SPECS[nextIndex].score;
+                this.scoreText.setText(`Score: ${this.score}`);
+            }
         });
     }
 }
