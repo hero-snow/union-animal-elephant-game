@@ -101,6 +101,13 @@ export class Game extends Scene {
         for(let i=0; i<5; i++) {
             this.bgGraphics.lineBetween(0, 0, 200 + i*100, 400);
         }
+        // Game board background (rounded)  
+        this.bgGraphics.fillStyle(COLORS.surface, 1);  
+        this.bgGraphics.fillRoundedRect(50, 50, 500, 750, 20);  
+
+        // Border  
+        this.bgGraphics.lineStyle(4, COLORS.primary, 0.5);  
+        this.bgGraphics.strokeRoundedRect(50, 50, 500, 750, 20); 
     }
 
     setupUI() {
@@ -244,9 +251,7 @@ export class Game extends Scene {
     }
 
     createAnimalIndicator() {
-        if (this.currentAnimalIndicator) {
-            this.currentAnimalIndicator.destroy();
-        }
+        if (this.currentAnimalIndicator) this.currentAnimalIndicator.destroy();
         this.currentAnimalIndicator = this.add.image(0, 50, `animal_${this.currentAnimalIndex}`);
         this.updateAnimalIndicator(this.input.x);
     }
