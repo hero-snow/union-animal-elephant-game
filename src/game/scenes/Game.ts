@@ -1,9 +1,11 @@
-import { Scene, GameObjects, Matter, Types } from 'phaser';
+import Phaser, { Scene, GameObjects } from 'phaser';
+
+type MatterGameObject = (GameObjects.GameObject & { body: MatterJS.BodyType });
 
 const ANIMAL_SPECS = [
-    { name: "ねずみ", radius: 20, image: "animal_0.png", score: 10 },
-    { name: "うさぎ", radius: 25, image: "animal_1.png", score: 20 },
-    { name: "ねこ",   radius: 30, image: "animal_2.png", score: 30 },
+    { name: "ひよこ", radius: 15, image: "animal_0.png", score: 10 },
+    { name: "うさぎ", radius: 20, image: "animal_1.png", score: 20 },
+    { name: "くま",   radius: 30, image: "animal_2.png", score: 30 },
     { name: "いぬ",   radius: 35, image: "animal_3.png", score: 40 },
     { name: "きつね", radius: 40, image: "animal_4.png", score: 50 },
     { name: "うま",   radius: 50, image: "animal_5.png", score: 60 },
@@ -13,7 +15,17 @@ const ANIMAL_SPECS = [
 ];
 
 const GAME_OVER_LINE_Y = 100;
-const GAME_OVER_DELAY = 2000; // 2 seconds in milliseconds
+const GAME_OVER_DELAY = 2000;
+
+const COLORS = {
+    background: 0xf2f9ea,
+    primary: 0x29664c,
+    primaryLight: 0xb9f9d6,
+    secondary: 0x8f4816,
+    tertiary: 0xffd709,
+    surface: 0xe2ebda,
+    text: 0x2a3127
+};
 
 export class Game extends Scene {
     private score: number = 0;
@@ -21,39 +33,35 @@ export class Game extends Scene {
     private scoreText!: GameObjects.Text;
     private highScoreText!: GameObjects.Text;
     private currentAnimalIndex!: number;
-    private currentAnimalIndicator!: GameObjects.Image;
+    private currentAnimalIndicator: GameObjects.Image | null = null;
     private gameOver: boolean = false;
     private gameOverTimer: number = 0;
-    private gameOverText!: GameObjects.Text;
-    private restartText!: GameObjects.Text;
-    private restartButton!: GameObjects.Text;
+    private gameOverOverlay: GameObjects.Container | null = null;
+    private bgGraphics!: GameObjects.Graphics;
 
     constructor() {
         super('Game');
     }
 
     preload() {
-        // Load high score from local storage
         const savedHighScore = localStorage.getItem('suikaHighScore');
         if (savedHighScore) {
             this.highScore = parseInt(savedHighScore, 10);
         }
 
-        // Load animal images
         ANIMAL_SPECS.forEach((spec, index) => {
             this.load.image(`animal_${index}`, `assets/images/${spec.image}`);
         });
     }
 
     create() {
+        this.bgGraphics = this.add.graphics();
+        this.drawBackground();
+
         this.matter.world.setBounds(50, 50, 500, 750, 32, true, true, false, true);
 
-        const bounds = new Phaser.Geom.Rectangle(50, 50, 500, 750);
-        const graphics = this.add.graphics();
-        graphics.lineStyle(2, 0x0000ff, 1);
-        graphics.strokeRectShape(bounds);
-
         this.drawGameOverLine();
+        this.setupUI();
         this.resetGame();
 
         this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
@@ -68,8 +76,8 @@ export class Game extends Scene {
             if (this.gameOver) return;
             event.pairs.forEach(pair => {
                 const { bodyA, bodyB } = pair;
-                const gameObjectA = bodyA.gameObject as Matter.MatterGameObject;
-                const gameObjectB = bodyB.gameObject as Matter.MatterGameObject;
+                const gameObjectA = bodyA.gameObject as MatterGameObject;
+                const gameObjectB = bodyB.gameObject as MatterGameObject;
 
                 if (gameObjectA && gameObjectB && bodyA.label === bodyB.label && bodyA.label !== "ぞう") {
                     this.evolve(gameObjectA, gameObjectB);
@@ -77,13 +85,44 @@ export class Game extends Scene {
             });
         });
 
-        // Restart listener
         this.input.keyboard?.on('keydown-R', () => {
             if (this.gameOver) this.resetGame();
         });
     }
 
-    update(time: number, delta: number) {
+    drawBackground() {
+        this.bgGraphics.clear();
+        this.bgGraphics.fillStyle(COLORS.surface, 1);
+        this.bgGraphics.fillRoundedRect(50, 50, 500, 750, 20);
+        this.bgGraphics.lineStyle(4, COLORS.primary, 0.5);
+        this.bgGraphics.strokeRoundedRect(50, 50, 500, 750, 20);
+
+        this.bgGraphics.lineStyle(2, COLORS.tertiary, 0.2);
+        for(let i=0; i<5; i++) {
+            this.bgGraphics.lineBetween(0, 0, 200 + i*100, 400);
+        }
+        // Game board background (rounded)  
+        this.bgGraphics.fillStyle(COLORS.surface, 1);  
+        this.bgGraphics.fillRoundedRect(50, 50, 500, 750, 20);  
+
+        // Border  
+        this.bgGraphics.lineStyle(4, COLORS.primary, 0.5);  
+        this.bgGraphics.strokeRoundedRect(50, 50, 500, 750, 20); 
+    }
+
+    setupUI() {
+        const textStyle = {
+            fontSize: '28px',
+            color: '#2a3127',
+            fontFamily: 'Plus Jakarta Sans, sans-serif',
+            fontStyle: 'bold'
+        };
+
+        this.scoreText = this.add.text(50, 10, `Score: ${this.score}`, textStyle);
+        this.highScoreText = this.add.text(550, 10, `High: ${this.highScore}`, textStyle).setOrigin(1, 0);
+    }
+
+    update(_time: number, delta: number) {
         if (this.gameOver) return;
 
         let isAnimalOverLine = false;
@@ -91,7 +130,7 @@ export class Game extends Scene {
 
         for (const body of bodies) {
             if (body.gameObject) {
-                 const animal = body.gameObject as Matter.MatterGameObject;
+                 const animal = body.gameObject as MatterGameObject;
                  const index = animal.getData('index');
                  if (index !== undefined) {
                     const radius = ANIMAL_SPECS[index].radius;
@@ -115,7 +154,7 @@ export class Game extends Scene {
 
     drawGameOverLine() {
         const line = this.add.graphics();
-        line.lineStyle(2, 0xff0000, 0.5);
+        line.lineStyle(2, 0x8f4816, 0.5);
         line.beginPath();
         for (let x = 50; x < 550; x += 20) {
             line.moveTo(x, GAME_OVER_LINE_Y);
@@ -128,32 +167,23 @@ export class Game extends Scene {
         this.gameOver = false;
         this.score = 0;
         this.gameOverTimer = 0;
+        this.scoreText.setText(`Score: ${this.score}`);
 
-        // Clear existing animals
         const bodies = this.matter.world.getAllBodies();
-        const gameObjects = bodies.map(body => body.gameObject).filter(obj => obj) as Matter.MatterGameObject[];
-        gameObjects.forEach(obj => {
-            if (obj && typeof obj.destroy === 'function') {
-                obj.destroy();
+        bodies.forEach(body => {
+            if (body.gameObject) {
+                (body.gameObject as GameObjects.GameObject).destroy();
             }
         });
 
-        // After destroying game objects, we may need to remove their bodies from the world too
         this.matter.world.setBounds(50, 50, 500, 750, 32, true, true, false, true);
 
-
-        if (this.scoreText) this.scoreText.destroy();
-        this.scoreText = this.add.text(50, 10, `Score: ${this.score}`, { fontSize: '24px', color: '#000' });
-
-        if (this.highScoreText) this.highScoreText.destroy();
-        this.highScoreText = this.add.text(550, 10, `High Score: ${this.highScore}`, { fontSize: '24px', color: '#000' }).setOrigin(1, 0);
-
-        if (this.gameOverText) this.gameOverText.destroy();
-        if (this.restartText) this.restartText.destroy();
-        if (this.restartButton) this.restartButton.destroy();
+        if (this.gameOverOverlay) {
+            this.gameOverOverlay.destroy();
+            this.gameOverOverlay = null;
+        }
 
         this.currentAnimalIndex = Math.floor(Math.random() * 3);
-        if (this.currentAnimalIndicator) this.currentAnimalIndicator.destroy();
         this.createAnimalIndicator();
     }
 
@@ -163,23 +193,71 @@ export class Game extends Scene {
         if (this.score > this.highScore) {
             this.highScore = this.score;
             localStorage.setItem('suikaHighScore', this.highScore.toString());
-            this.highScoreText.setText(`High Score: ${this.highScore}`);
+            this.highScoreText.setText(`High: ${this.highScore}`);
         }
 
-        this.gameOverText = this.add.text(300, 350, 'Game Over', { fontSize: '64px', color: '#ff0000' }).setOrigin(0.5);
-        this.restartText = this.add.text(300, 420, 'Press R to Restart', { fontSize: '32px', color: '#000' }).setOrigin(0.5);
-        this.createRestartButton();
+        this.createGameOverOverlay();
+        if (this.currentAnimalIndicator) {
+            this.currentAnimalIndicator.destroy();
+            this.currentAnimalIndicator = null;
+        }
+    }
 
-        if (this.currentAnimalIndicator) this.currentAnimalIndicator.destroy();
+    createGameOverOverlay() {
+        const bg = this.add.graphics();
+        bg.fillStyle(0x000000, 0.7);
+        bg.fillRect(0, 0, 600, 800);
+
+        const card = this.add.graphics();
+        card.fillStyle(0xffffff, 1);
+        card.fillRoundedRect(100, 250, 400, 300, 30);
+        card.lineStyle(6, COLORS.primary, 1);
+        card.strokeRoundedRect(100, 250, 400, 300, 30);
+
+        const title = this.add.text(300, 320, 'GAME OVER!', {
+            fontSize: '48px',
+            color: '#8f4816',
+            fontFamily: 'Plus Jakarta Sans, sans-serif',
+            fontStyle: 'bold'
+        }).setOrigin(0.5);
+
+        const restartBtn = this.add.container(300, 450);
+        const btnBg = this.add.graphics();
+        btnBg.fillStyle(COLORS.primary, 1);
+        btnBg.fillRoundedRect(-100, -30, 200, 60, 30);
+        btnBg.fillStyle(0x1b5a40, 1);
+        btnBg.fillRoundedRect(-100, 25, 200, 10, 5);
+
+        const btnText = this.add.text(0, 0, 'RESTART', {
+            fontSize: '24px',
+            color: '#ffffff',
+            fontFamily: 'Plus Jakarta Sans, sans-serif',
+            fontStyle: 'bold'
+        }).setOrigin(0.5);
+
+        restartBtn.add([btnBg, btnText]);
+        restartBtn.setSize(200, 60).setInteractive({ useHandCursor: true });
+
+        restartBtn.on('pointerdown', () => {
+            restartBtn.setScale(0.95);
+        });
+
+        restartBtn.on('pointerup', () => {
+            restartBtn.setScale(1);
+            this.resetGame();
+        });
+
+        this.gameOverOverlay = this.add.container(0, 0, [bg, card, title, restartBtn]);
     }
 
     createAnimalIndicator() {
-        const spec = ANIMAL_SPECS[this.currentAnimalIndex];
+        if (this.currentAnimalIndicator) this.currentAnimalIndicator.destroy();
         this.currentAnimalIndicator = this.add.image(0, 50, `animal_${this.currentAnimalIndex}`);
         this.updateAnimalIndicator(this.input.x);
     }
 
     updateAnimalIndicator(x: number) {
+        if (!this.currentAnimalIndicator) return;
         const spec = ANIMAL_SPECS[this.currentAnimalIndex];
         const clampedX = Phaser.Math.Clamp(x, 50 + spec.radius, 550 - spec.radius);
         this.currentAnimalIndicator.setTexture(`animal_${this.currentAnimalIndex}`);
@@ -189,54 +267,27 @@ export class Game extends Scene {
         this.currentAnimalIndicator.x = clampedX;
     }
 
-    private createRestartButton() {
-        this.restartButton = this.add.text(300, 470, 'Restart Game', {
-            fontSize: '32px',
-            color: '#FFF',
-            backgroundColor: '#007BFF',
-            padding: { x: 10, y: 5 }
-        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-
-        this.restartButton.on('pointerdown', () => {
-            this.restartButton.setScale(0.95);
-        });
-
-        this.restartButton.on('pointerup', () => {
-            this.restartButton.setScale(1);
-            this.resetGame();
-        });
-
-        this.restartButton.on('pointerover', () => {
-            this.restartButton.setBackgroundColor('#0056b3');
-        });
-
-        this.restartButton.on('pointerout', () => {
-            this.restartButton.setBackgroundColor('#007BFF');
-            this.restartButton.setScale(1);
-        });
-    }
-
     dropAnimal(x: number) {
+        if (this.gameOver) return;
+
         const spec = ANIMAL_SPECS[this.currentAnimalIndex];
         const clampedX = Phaser.Math.Clamp(x, 50 + spec.radius, 550 - spec.radius);
 
         this.createAnimal(clampedX, 100, this.currentAnimalIndex);
 
         this.currentAnimalIndex = Math.floor(Math.random() * 3);
-        this.updateAnimalIndicator(this.input.x);
+        this.createAnimalIndicator();
     }
 
-    createAnimal(x: number, y: number, index: number): Matter.MatterGameObject {
+    createAnimal(x: number, y: number, index: number): MatterGameObject {
         const spec = ANIMAL_SPECS[index];
         const texture = `animal_${index}`;
 
-        // The image is the visual representation
         const image = this.add.image(0, 0, texture);
         const displayWidth = spec.radius * 2;
         const displayHeight = (image.height / image.width) * displayWidth;
         image.setDisplaySize(displayWidth, displayHeight);
 
-        // The body is the physical representation
         const body = this.matter.add.circle(x, y, spec.radius, {
             restitution: 0.5,
             friction: 0.5,
@@ -246,15 +297,15 @@ export class Game extends Scene {
         const container = this.add.container(x, y, [ image ]);
         container.setData('index', index);
 
-        // Associate the container with the Matter body
-        return this.matter.add.gameObject(container, body) as Matter.MatterGameObject;
+        return this.matter.add.gameObject(container, body) as MatterGameObject;
     }
 
-    evolve(objA: Matter.MatterGameObject, objB: Matter.MatterGameObject) {
+    evolve(objA: MatterGameObject, objB: MatterGameObject) {
         const index = objA.getData('index');
-        if (index === null || index + 1 >= ANIMAL_SPECS.length) {
+        if (index === undefined || index === null || index + 1 >= ANIMAL_SPECS.length) {
             return;
         }
+
         const nextIndex = index + 1;
         const newX = (objA.body.position.x + objB.body.position.x) / 2;
         const newY = (objA.body.position.y + objB.body.position.y) / 2;
@@ -263,10 +314,10 @@ export class Game extends Scene {
             if (objA.active && objB.active) {
                 objA.destroy();
                 objB.destroy();
-        
+
                 this.createAnimal(newX, newY, nextIndex);
                 this.score += ANIMAL_SPECS[nextIndex].score;
-                this.scoreText.setText('Score: ' + this.score);
+                this.scoreText.setText(`Score: ${this.score}`);
             }
         });
     }
