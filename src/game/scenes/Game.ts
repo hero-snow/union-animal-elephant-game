@@ -3,15 +3,15 @@ import Phaser, { Scene, GameObjects } from 'phaser';
 type MatterGameObject = (GameObjects.GameObject & { body: MatterJS.BodyType });
 
 const ANIMAL_SPECS = [
-    { name: "ひよこ", radius: 15, image: "animal_0.png", score: 10 },
-    { name: "うさぎ", radius: 20, image: "animal_1.png", score: 20 },
-    { name: "くま",   radius: 30, image: "animal_2.png", score: 30 },
-    { name: "いぬ",   radius: 35, image: "animal_3.png", score: 40 },
-    { name: "きつね", radius: 40, image: "animal_4.png", score: 50 },
-    { name: "うま",   radius: 50, image: "animal_5.png", score: 60 },
-    { name: "きりん", radius: 60, image: "animal_6.png", score: 70 },
-    { name: "ライオン", radius: 70, image: "animal_7.png", score: 80 },
-    { name: "ぞう",   radius: 80, image: "animal_8.png", score: 90 }
+    { name: "ねずみ", radius: 30, image: "animal_0.png", score: 10 },
+    { name: "うさぎ", radius: 40, image: "animal_1.png", score: 20 },
+    { name: "ねこ",   radius: 60, image: "animal_2.png", score: 30 },
+    { name: "いぬ",   radius: 70, image: "animal_3.png", score: 40 },
+    { name: "きつね", radius: 80, image: "animal_4.png", score: 50 },
+    { name: "うま",   radius: 100, image: "animal_5.png", score: 60 },
+    { name: "きりん", radius: 120, image: "animal_6.png", score: 70 },
+    { name: "ライオン", radius: 140, image: "animal_7.png", score: 80 },
+    { name: "ぞう",   radius: 160, image: "animal_8.png", score: 90 }
 ];
 
 const GAME_OVER_LINE_Y = 100;
