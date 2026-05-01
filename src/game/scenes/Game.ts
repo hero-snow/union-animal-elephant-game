@@ -1,4 +1,4 @@
-import { Scene, GameObjects, Matter } from 'phaser';
+import Phaser, { Scene, GameObjects } from 'phaser';
 
 type MatterGameObject = (GameObjects.GameObject & { body: MatterJS.BodyType });
 
@@ -122,7 +122,7 @@ export class Game extends Scene {
         this.highScoreText = this.add.text(550, 10, `High: ${this.highScore}`, textStyle).setOrigin(1, 0);
     }
 
-    update(time: number, delta: number) {
+    update(_time: number, delta: number) {
         if (this.gameOver) return;
 
         let isAnimalOverLine = false;
