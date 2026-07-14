@@ -114,7 +114,7 @@ export class Game extends Scene {
         const textStyle = {
             fontSize: '28px',
             color: '#2a3127',
-            fontFamily: 'Plus Jakarta Sans, sans-serif',
+            fontFamily: 'Plus Jakarta Sans, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif',
             fontStyle: 'bold'
         };
 
