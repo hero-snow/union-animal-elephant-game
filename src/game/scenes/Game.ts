@@ -114,12 +114,12 @@ export class Game extends Scene {
         const textStyle = {
             fontSize: '28px',
             color: '#2a3127',
-            fontFamily: 'Plus Jakarta Sans, sans-serif',
+            fontFamily: 'Plus Jakarta Sans, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif',
             fontStyle: 'bold'
         };
 
-        this.scoreText = this.add.text(50, 10, `Score: ${this.score}`, textStyle);
-        this.highScoreText = this.add.text(550, 10, `High: ${this.highScore}`, textStyle).setOrigin(1, 0);
+        this.scoreText = this.add.text(50, 10, `得点: ${this.score}`, textStyle);
+        this.highScoreText = this.add.text(550, 10, `最高得点: ${this.highScore}`, textStyle).setOrigin(1, 0);
     }
 
     update(_time: number, delta: number) {
@@ -167,7 +167,7 @@ export class Game extends Scene {
         this.gameOver = false;
         this.score = 0;
         this.gameOverTimer = 0;
-        this.scoreText.setText(`Score: ${this.score}`);
+        this.scoreText.setText(`得点: ${this.score}`);
 
         const bodies = this.matter.world.getAllBodies();
         bodies.forEach(body => {
@@ -193,7 +193,7 @@ export class Game extends Scene {
         if (this.score > this.highScore) {
             this.highScore = this.score;
             localStorage.setItem('suikaHighScore', this.highScore.toString());
-            this.highScoreText.setText(`High: ${this.highScore}`);
+            this.highScoreText.setText(`最高得点: ${this.highScore}`);
         }
 
         this.createGameOverOverlay();
@@ -214,7 +214,7 @@ export class Game extends Scene {
         card.lineStyle(6, COLORS.primary, 1);
         card.strokeRoundedRect(100, 250, 400, 300, 30);
 
-        const title = this.add.text(300, 320, 'GAME OVER!', {
+        const title = this.add.text(300, 320, 'ゲームオーバー！', {
             fontSize: '48px',
             color: '#8f4816',
             fontFamily: 'Plus Jakarta Sans, sans-serif',
@@ -228,7 +228,7 @@ export class Game extends Scene {
         btnBg.fillStyle(0x1b5a40, 1);
         btnBg.fillRoundedRect(-100, 25, 200, 10, 5);
 
-        const btnText = this.add.text(0, 0, 'RESTART', {
+        const btnText = this.add.text(0, 0, 'もう一度', {
             fontSize: '24px',
             color: '#ffffff',
             fontFamily: 'Plus Jakarta Sans, sans-serif',
@@ -317,7 +317,7 @@ export class Game extends Scene {
 
                 this.createAnimal(newX, newY, nextIndex);
                 this.score += ANIMAL_SPECS[nextIndex].score;
-                this.scoreText.setText(`Score: ${this.score}`);
+                this.scoreText.setText(`得点: ${this.score}`);
             }
         });
     }
