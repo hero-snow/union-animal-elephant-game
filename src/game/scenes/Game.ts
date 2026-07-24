@@ -2,6 +2,11 @@ import Phaser, { Scene, GameObjects } from 'phaser';
 
 type MatterGameObject = (GameObjects.GameObject & { body: MatterJS.BodyType });
 
+interface Point {
+    x: number;
+    y: number;
+}
+
 const ANIMAL_SPECS = [
     { name: "ねずみ", radius: 30, image: "animal_0.png", score: 10 },
     { name: "うさぎ", radius: 40, image: "animal_1.png", score: 20 },
@@ -38,6 +43,7 @@ export class Game extends Scene {
     private gameOverTimer: number = 0;
     private gameOverOverlay: GameObjects.Container | null = null;
     private bgGraphics!: GameObjects.Graphics;
+    private cachedVertices: Point[][] = [];
 
     constructor() {
         super('Game');
@@ -57,6 +63,8 @@ export class Game extends Scene {
     create() {
         this.bgGraphics = this.add.graphics();
         this.drawBackground();
+
+        this.generateAnimalVertices();
 
         this.matter.world.setBounds(50, 50, 500, 750, 32, true, true, false, true);
 
@@ -132,9 +140,9 @@ export class Game extends Scene {
             if (body.gameObject) {
                  const animal = body.gameObject as MatterGameObject;
                  const index = animal.getData('index');
-                 if (index !== undefined) {
-                    const radius = ANIMAL_SPECS[index].radius;
-                    if (body.position.y - radius < GAME_OVER_LINE_Y) {
+                 if (index !== undefined && body.vertices && body.vertices.length > 0) {
+                    const minY = Math.min(...body.vertices.map(v => v.y));
+                    if (minY < GAME_OVER_LINE_Y) {
                         isAnimalOverLine = true;
                         break;
                     }
@@ -283,21 +291,44 @@ export class Game extends Scene {
         const spec = ANIMAL_SPECS[index];
         const texture = `animal_${index}`;
 
-        const image = this.add.image(0, 0, texture);
-        const displayWidth = spec.radius * 2;
-        const displayHeight = (image.height / image.width) * displayWidth;
-        image.setDisplaySize(displayWidth, displayHeight);
+        const frame = this.textures.getFrame(texture);
+        const textureWidth = frame.width;
+        const textureHeight = frame.height;
 
-        const body = this.matter.add.circle(x, y, spec.radius, {
+        const displayWidth = spec.radius * 2;
+        const displayHeight = (textureHeight / textureWidth) * displayWidth;
+
+        const cached = this.cachedVertices[index];
+        const scaleX = displayWidth / textureWidth;
+        const scaleY = displayHeight / textureHeight;
+
+        const scaledVertices = cached.map(v => ({
+            x: v.x * scaleX,
+            y: v.y * scaleY
+        }));
+
+        let sumX = 0;
+        let sumY = 0;
+        for (const v of scaledVertices) {
+            sumX += v.x;
+            sumY += v.y;
+        }
+        const centroidX = sumX / scaledVertices.length;
+        const centroidY = sumY / scaledVertices.length;
+
+        const image = this.add.image(x, y, texture);
+        image.setDisplaySize(displayWidth, displayHeight);
+        image.setOrigin(centroidX / displayWidth, centroidY / displayHeight);
+
+        const body = this.matter.add.fromVertices(x, y, scaledVertices, {
             restitution: 0.5,
             friction: 0.5,
             label: spec.name
         });
 
-        const container = this.add.container(x, y, [ image ]);
-        container.setData('index', index);
+        image.setData('index', index);
 
-        return this.matter.add.gameObject(container, body) as MatterGameObject;
+        return this.matter.add.gameObject(image, body) as MatterGameObject;
     }
 
     evolve(objA: MatterGameObject, objB: MatterGameObject) {
@@ -318,6 +349,155 @@ export class Game extends Scene {
                 this.createAnimal(newX, newY, nextIndex);
                 this.score += ANIMAL_SPECS[nextIndex].score;
                 this.scoreText.setText(`得点: ${this.score}`);
+            }
+        });
+    }
+
+    private extractOutlinePoints(textureKey: string): Point[] {
+        const frame = this.textures.getFrame(textureKey);
+        const sourceImage = frame.source.image as HTMLImageElement;
+
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return [];
+
+        const width = frame.width;
+        const height = frame.height;
+        canvas.width = width;
+        canvas.height = height;
+
+        ctx.drawImage(sourceImage, 0, 0, width, height);
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const data = imageData.data;
+
+        const points: Point[] = [];
+        const alphaThreshold = 50;
+
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const alpha = data[((y * width) + x) * 4 + 3];
+                if (alpha > alphaThreshold) {
+                    points.push({ x, y });
+                    break;
+                }
+            }
+            for (let x = width - 1; x >= 0; x--) {
+                const alpha = data[((y * width) + x) * 4 + 3];
+                if (alpha > alphaThreshold) {
+                    points.push({ x, y });
+                    break;
+                }
+            }
+        }
+
+        for (let x = 0; x < width; x++) {
+            for (let y = 0; y < height; y++) {
+                const alpha = data[((y * width) + x) * 4 + 3];
+                if (alpha > alphaThreshold) {
+                    points.push({ x, y });
+                    break;
+                }
+            }
+            for (let y = height - 1; y >= 0; y--) {
+                const alpha = data[((y * width) + x) * 4 + 3];
+                if (alpha > alphaThreshold) {
+                    points.push({ x, y });
+                    break;
+                }
+            }
+        }
+
+        return points;
+    }
+
+    private crossProduct(o: Point, a: Point, b: Point): number {
+        return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+    }
+
+    private computeConvexHull(points: Point[]): Point[] {
+        if (points.length <= 1) return points;
+
+        const sorted = [...points].sort((a, b) => a.x !== b.x ? a.x - b.x : a.y - b.y);
+
+        const lower: Point[] = [];
+        for (let i = 0; i < sorted.length; i++) {
+            while (lower.length >= 2 && this.crossProduct(lower[lower.length - 2], lower[lower.length - 1], sorted[i]) <= 0) {
+                lower.pop();
+            }
+            lower.push(sorted[i]);
+        }
+
+        const upper: Point[] = [];
+        for (let i = sorted.length - 1; i >= 0; i--) {
+            while (upper.length >= 2 && this.crossProduct(upper[upper.length - 2], upper[upper.length - 1], sorted[i]) <= 0) {
+                upper.pop();
+            }
+            upper.push(sorted[i]);
+        }
+
+        lower.pop();
+        upper.pop();
+        return lower.concat(upper);
+    }
+
+    private distanceToSegment(p: Point, a: Point, b: Point): number {
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        if (dx === 0 && dy === 0) {
+            return Math.hypot(p.x - a.x, p.y - a.y);
+        }
+        const t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy);
+        const clampedT = Math.max(0, Math.min(1, t));
+        const projX = a.x + clampedT * dx;
+        const projY = a.y + clampedT * dy;
+        return Math.hypot(p.x - projX, p.y - projY);
+    }
+
+    private simplifyPolygon(vertices: Point[], epsilon: number): Point[] {
+        if (vertices.length <= 3) return vertices;
+        let simplified = [...vertices];
+        let changed = true;
+        while (changed) {
+            changed = false;
+            for (let i = 0; i < simplified.length; i++) {
+                const prev = simplified[(i - 1 + simplified.length) % simplified.length];
+                const curr = simplified[i];
+                const next = simplified[(i + 1) % simplified.length];
+                if (this.distanceToSegment(curr, prev, next) < epsilon) {
+                    simplified.splice(i, 1);
+                    changed = true;
+                    break;
+                }
+            }
+        }
+        return simplified;
+    }
+
+    private generateAnimalVertices() {
+        ANIMAL_SPECS.forEach((spec, index) => {
+            const textureKey = `animal_${index}`;
+            const frame = this.textures.getFrame(textureKey);
+            const width = frame.width;
+            const height = frame.height;
+
+            const outline = this.extractOutlinePoints(textureKey);
+            const hull = this.computeConvexHull(outline);
+            const simplified = this.simplifyPolygon(hull, 2.5);
+
+            if (simplified.length < 3) {
+                const fallback: Point[] = [];
+                const rx = width / 2;
+                const ry = height / 2;
+                for (let i = 0; i < 8; i++) {
+                    const angle = (i / 8) * Math.PI * 2;
+                    fallback.push({
+                        x: rx + rx * Math.cos(angle),
+                        y: ry + ry * Math.sin(angle)
+                    });
+                }
+                this.cachedVertices[index] = fallback;
+            } else {
+                this.cachedVertices[index] = simplified;
             }
         });
     }
