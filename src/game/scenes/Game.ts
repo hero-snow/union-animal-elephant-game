@@ -1,4 +1,5 @@
 import Phaser, { Scene, GameObjects } from 'phaser';
+import decomp from 'poly-decomp';
 
 type MatterGameObject = (GameObjects.GameObject & { body: MatterJS.BodyType });
 
@@ -61,6 +62,12 @@ export class Game extends Scene {
     }
 
     create() {
+        (window as any).decomp = decomp;
+        const matterLib = (Phaser.Physics.Matter as any).Matter;
+        if (matterLib && matterLib.Common) {
+            matterLib.Common.setDecomp(decomp);
+        }
+
         this.bgGraphics = this.add.graphics();
         this.drawBackground();
 
@@ -307,18 +314,15 @@ export class Game extends Scene {
             y: v.y * scaleY
         }));
 
-        let sumX = 0;
-        let sumY = 0;
-        for (const v of scaledVertices) {
-            sumX += v.x;
-            sumY += v.y;
-        }
-        const centroidX = sumX / scaledVertices.length;
-        const centroidY = sumY / scaledVertices.length;
+        const matterVertices = (Phaser.Physics.Matter as any).Matter?.Vertices || (Phaser.Physics.Matter as any).Vertices;
+        const centre = matterVertices ? matterVertices.centre(scaledVertices) : {
+            x: scaledVertices.reduce((sum, v) => sum + v.x, 0) / scaledVertices.length,
+            y: scaledVertices.reduce((sum, v) => sum + v.y, 0) / scaledVertices.length
+        };
 
         const image = this.add.image(x, y, texture);
         image.setDisplaySize(displayWidth, displayHeight);
-        image.setOrigin(centroidX / displayWidth, centroidY / displayHeight);
+        image.setOrigin(centre.x / displayWidth, centre.y / displayHeight);
 
         const body = this.matter.add.fromVertices(x, y, scaledVertices, {
             restitution: 0.5,
@@ -370,74 +374,72 @@ export class Game extends Scene {
         const imageData = ctx.getImageData(0, 0, width, height);
         const data = imageData.data;
 
-        const points: Point[] = [];
         const alphaThreshold = 50;
+        const isSolid = (x: number, y: number): boolean => {
+            if (x < 0 || x >= width || y < 0 || y >= height) return false;
+            return data[((y * width) + x) * 4 + 3] > alphaThreshold;
+        };
 
+        let startX = -1;
+        let startY = -1;
         for (let y = 0; y < height; y++) {
             for (let x = 0; x < width; x++) {
-                const alpha = data[((y * width) + x) * 4 + 3];
-                if (alpha > alphaThreshold) {
-                    points.push({ x, y });
+                if (isSolid(x, y)) {
+                    startX = x;
+                    startY = y;
                     break;
                 }
             }
-            for (let x = width - 1; x >= 0; x--) {
-                const alpha = data[((y * width) + x) * 4 + 3];
-                if (alpha > alphaThreshold) {
-                    points.push({ x, y });
+            if (startX !== -1) break;
+        }
+
+        if (startX === -1) return [];
+
+        const DIRS = [
+            { x: -1, y:  0 }, // 0: W
+            { x: -1, y: -1 }, // 1: NW
+            { x:  0, y: -1 }, // 2: N
+            { x:  1, y: -1 }, // 3: NE
+            { x:  1, y:  0 }, // 4: E
+            { x:  1, y:  1 }, // 5: SE
+            { x:  0, y:  1 }, // 6: S
+            { x: -1, y:  1 }  // 7: SW
+        ];
+
+        const contour: Point[] = [];
+        let currX = startX;
+        let currY = startY;
+        let backDir = 0;
+
+        const maxSteps = width * height * 4;
+        let steps = 0;
+
+        while (steps < maxSteps) {
+            contour.push({ x: currX, y: currY });
+            steps++;
+
+            let foundNext = false;
+            const startSearch = (backDir + 1) % 8;
+
+            for (let i = 0; i < 8; i++) {
+                const dirIdx = (startSearch + i) % 8;
+                const nextX = currX + DIRS[dirIdx].x;
+                const nextY = currY + DIRS[dirIdx].y;
+
+                if (isSolid(nextX, nextY)) {
+                    backDir = (dirIdx + 4) % 8;
+                    currX = nextX;
+                    currY = nextY;
+                    foundNext = true;
                     break;
                 }
             }
+
+            if (!foundNext) break;
+            if (currX === startX && currY === startY) break;
         }
 
-        for (let x = 0; x < width; x++) {
-            for (let y = 0; y < height; y++) {
-                const alpha = data[((y * width) + x) * 4 + 3];
-                if (alpha > alphaThreshold) {
-                    points.push({ x, y });
-                    break;
-                }
-            }
-            for (let y = height - 1; y >= 0; y--) {
-                const alpha = data[((y * width) + x) * 4 + 3];
-                if (alpha > alphaThreshold) {
-                    points.push({ x, y });
-                    break;
-                }
-            }
-        }
-
-        return points;
-    }
-
-    private crossProduct(o: Point, a: Point, b: Point): number {
-        return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
-    }
-
-    private computeConvexHull(points: Point[]): Point[] {
-        if (points.length <= 1) return points;
-
-        const sorted = [...points].sort((a, b) => a.x !== b.x ? a.x - b.x : a.y - b.y);
-
-        const lower: Point[] = [];
-        for (let i = 0; i < sorted.length; i++) {
-            while (lower.length >= 2 && this.crossProduct(lower[lower.length - 2], lower[lower.length - 1], sorted[i]) <= 0) {
-                lower.pop();
-            }
-            lower.push(sorted[i]);
-        }
-
-        const upper: Point[] = [];
-        for (let i = sorted.length - 1; i >= 0; i--) {
-            while (upper.length >= 2 && this.crossProduct(upper[upper.length - 2], upper[upper.length - 1], sorted[i]) <= 0) {
-                upper.pop();
-            }
-            upper.push(sorted[i]);
-        }
-
-        lower.pop();
-        upper.pop();
-        return lower.concat(upper);
+        return contour;
     }
 
     private distanceToSegment(p: Point, a: Point, b: Point): number {
@@ -453,36 +455,64 @@ export class Game extends Scene {
         return Math.hypot(p.x - projX, p.y - projY);
     }
 
-    private simplifyPolygon(vertices: Point[], epsilon: number): Point[] {
-        if (vertices.length <= 3) return vertices;
-        let simplified = [...vertices];
-        let changed = true;
-        while (changed) {
-            changed = false;
-            for (let i = 0; i < simplified.length; i++) {
-                const prev = simplified[(i - 1 + simplified.length) % simplified.length];
-                const curr = simplified[i];
-                const next = simplified[(i + 1) % simplified.length];
-                if (this.distanceToSegment(curr, prev, next) < epsilon) {
-                    simplified.splice(i, 1);
-                    changed = true;
-                    break;
-                }
+    private rdpRecursive(points: Point[], epsilon: number): Point[] {
+        if (points.length <= 2) return points;
+
+        let maxDist = 0;
+        let maxIndex = 0;
+        const first = points[0];
+        const last = points[points.length - 1];
+
+        for (let i = 1; i < points.length - 1; i++) {
+            const dist = this.distanceToSegment(points[i], first, last);
+            if (dist > maxDist) {
+                maxDist = dist;
+                maxIndex = i;
             }
         }
-        return simplified;
+
+        if (maxDist > epsilon) {
+            const left = this.rdpRecursive(points.slice(0, maxIndex + 1), epsilon);
+            const right = this.rdpRecursive(points.slice(maxIndex), epsilon);
+            return left.slice(0, left.length - 1).concat(right);
+        } else {
+            return [first, last];
+        }
+    }
+
+    private simplifyPolygonRDP(contour: Point[], epsilon: number): Point[] {
+        if (contour.length <= 4) return contour;
+
+        let maxD = 0;
+        let splitIdx = 0;
+        const p0 = contour[0];
+        for (let i = 1; i < contour.length; i++) {
+            const d = Math.hypot(contour[i].x - p0.x, contour[i].y - p0.y);
+            if (d > maxD) {
+                maxD = d;
+                splitIdx = i;
+            }
+        }
+
+        const chain1 = contour.slice(0, splitIdx + 1);
+        const chain2 = contour.slice(splitIdx).concat([contour[0]]);
+
+        const rdp1 = this.rdpRecursive(chain1, epsilon);
+        const rdp2 = this.rdpRecursive(chain2, epsilon);
+
+        const result = rdp1.slice(0, rdp1.length - 1).concat(rdp2.slice(0, rdp2.length - 1));
+        return result;
     }
 
     private generateAnimalVertices() {
-        ANIMAL_SPECS.forEach((spec, index) => {
+        ANIMAL_SPECS.forEach((_spec, index) => {
             const textureKey = `animal_${index}`;
             const frame = this.textures.getFrame(textureKey);
             const width = frame.width;
             const height = frame.height;
 
-            const outline = this.extractOutlinePoints(textureKey);
-            const hull = this.computeConvexHull(outline);
-            const simplified = this.simplifyPolygon(hull, 2.5);
+            const contour = this.extractOutlinePoints(textureKey);
+            const simplified = this.simplifyPolygonRDP(contour, 3.0);
 
             if (simplified.length < 3) {
                 const fallback: Point[] = [];

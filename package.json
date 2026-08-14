@@ -27,6 +27,7 @@
     },
     "dependencies": {
         "phaser": "^4.2.1",
+        "poly-decomp": "^0.3.0",
         "terser": "^5.49.0"
     }
 }
