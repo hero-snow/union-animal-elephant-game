@@ -1,6 +1,10 @@
+# License Specification
+
+## Source Code License
+
 MIT License
 
-Copyright (c) 2025 hero-snow, Phaser Studio Inc
+Copyright (c) 2026 Hiroyuki Oikawa
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -19,3 +23,14 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---
+
+## Game Asset (Images) License
+
+Copyright (c) 2026 Children of Hiroyuki Oikawa. All Rights Reserved.
+
+The graphic and image assets included in this repository (including all files in `public/assets/` and `public/assets/images/`) were created by the children of Hiroyuki Oikawa.
+
+- **Non-Grant of License**: These image assets are **NOT** licensed under the MIT License.
+- **Permission Required**: Any copying, distribution, modification, commercial use, or public display of these image assets requires prior explicit written permission from the copyright holders.
