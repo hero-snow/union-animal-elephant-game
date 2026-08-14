@@ -1,0 +1,15 @@
+body {
+    margin: 0;
+    padding: 0;
+    color: #2a3127;
+    background-color: #f2f9ea;
+}
+
+#app {
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
