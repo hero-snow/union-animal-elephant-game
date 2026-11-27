@@ -16,6 +16,9 @@ const config: Types.Core.GameConfig = {
         default: 'matter',
         matter: {
             gravity: { x: 0, y: 1 },
+            positionIterations: 10,
+            velocityIterations: 8,
+            constraintIterations: 4,
             debug: false
         }
     },
